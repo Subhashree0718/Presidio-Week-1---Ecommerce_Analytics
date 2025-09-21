@@ -1,4 +1,5 @@
 const pool = require('../db');
+const { recommend } = require('../utils/recommendationEngine');
 
 async function getTrendingProducts(req, res) {
     try {
@@ -14,5 +15,10 @@ async function getTrendingProducts(req, res) {
         res.status(500).send(err.message);
     }
 }
+function getRecommendations(req, res) {
+    const productId = req.params.productId;
+    const recs = recommend(productId);
+    res.json({ productId, recommendations: recs });
+}
 
-module.exports = { getTrendingProducts };
+module.exports = { getTrendingProducts, getRecommendations };
