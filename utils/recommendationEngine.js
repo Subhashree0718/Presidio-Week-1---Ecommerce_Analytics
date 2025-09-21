@@ -11,16 +11,15 @@ function updateCoPurchase(products) {
         }
     }
 }
+
 function recommend(productId) {
     const related = coPurchaseMap[productId] || {};
     const sorted = Object.entries(related)
-        .sort((a,b)=> b[1]-a[1])
-        .filter(([_,count]) => count / Object.values(related).reduce((s,c)=> s+c,0) >= 0.3)
-        .slice(0,3)
+        .sort((a, b) => b[1] - a[1])
+        .filter(([_, count]) => count / Object.values(related).reduce((s, c) => s + c, 0) >= 0.3)
+        .slice(0, 3)
         .map(e => e[0]);
     return sorted;
 }
 
 module.exports = { updateCoPurchase, recommend };
-
-

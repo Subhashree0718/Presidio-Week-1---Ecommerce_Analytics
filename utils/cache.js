@@ -1,5 +1,5 @@
 const cache = {};
-const TTL = 60 * 1000; // 1 minute default
+const TTL = 60 * 1000; 
 
 function set(key, value, ttl = TTL) {
     const expires = Date.now() + ttl;
