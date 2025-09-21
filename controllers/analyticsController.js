@@ -1,6 +1,24 @@
-const pool = require('../db');
-const { recommend } = require('../utils/recommendationEngine');
-
+const { set, get } = require('../utils/cache');
+const pool = require('../db'); 
+async function calculateCategorySales(categoryId) {
+    const res = await pool.query(
+        'SELECT category_id FROM categories WHERE parent_id = $1',
+        [categoryId]
+    );
+    const subcategories = res.rows.map(r => r.category_id);
+    const prodRes = await pool.query(
+        `SELECT COALESCE(SUM(oi.quantity * p.price), 0) AS revenue
+         FROM products p
+         LEFT JOIN order_items oi USING(product_id)
+         WHERE p.category_id = $1`,
+        [categoryId]
+    );
+    let totalRevenue = parseFloat(prodRes.rows[0].revenue) || 0;
+    for (const subId of subcategories) {
+        totalRevenue += await calculateCategorySales(subId);
+    }
+    return totalRevenue;
+}
 async function getTrendingProducts(req, res) {
     const cacheKey = 'trending_products';
     const cached = get(cacheKey);
@@ -21,42 +39,33 @@ async function getTrendingProducts(req, res) {
 }
 function getRecommendations(req, res) {
     const productId = req.params.productId;
+    const cacheKey = `recommend_${productId}`;
+    const cached = get(cacheKey);
+    if (cached) return res.json(cached);
+    const { recommend } = require('../utils/recommendationEngine');
     const recs = recommend(productId);
-    res.json({ productId, recommendations: recs });
+    const result = { productId, recommendations: recs };
+    set(cacheKey, result);
+    res.json(result);
 }
-
-async function calculateCategorySales(categoryId) {
-    const res = await pool.query(
-        'SELECT category_id FROM categories WHERE parent_id = $1',
-        [categoryId]
-    );
-    const subcategories = res.rows.map(r => r.category_id);
-
-    const prodRes = await pool.query(
-        `SELECT COALESCE(SUM(oi.quantity * p.price),0) AS revenue
-         FROM products p
-         LEFT JOIN order_items oi USING(product_id)
-         WHERE p.category_id = $1`,
-         [categoryId]
-    );
-    let totalRevenue = parseFloat(prodRes.rows[0].revenue) || 0;
-
-    for (const subId of subcategories) {
-        totalRevenue += await calculateCategorySales(subId);
-    }
-    return totalRevenue;
-}
-
 async function getCategoryAnalytics(req, res) {
     const categoryId = req.params.id;
+    const cacheKey = `category_${categoryId}`;
+    const cached = get(cacheKey);
+    if (cached) return res.json(cached);
     try {
         const totalRevenue = await calculateCategorySales(categoryId);
-        res.json({ categoryId, totalRevenue });
-    } catch(err) {
+        const result = { categoryId, totalRevenue };
+        set(cacheKey, result);
+        res.json(result);
+    } catch (err) {
         res.status(500).send(err.message);
     }
 }
 async function getTopUsers(req, res) {
+    const cacheKey = 'top_users';
+    const cached = get(cacheKey);
+    if (cached) return res.json(cached);
     try {
         const result = await pool.query(
             `SELECT u.user_id, u.name, COUNT(o.order_id) AS total_orders,
@@ -69,11 +78,10 @@ async function getTopUsers(req, res) {
              ORDER BY total_orders DESC, total_spent DESC
              LIMIT 10`
         );
+        set(cacheKey, result.rows); 
         res.json(result.rows);
-    } catch(err) {
+    } catch (err) {
         res.status(500).send(err.message);
     }
 }
-
 module.exports = { getTrendingProducts, getRecommendations, getCategoryAnalytics, getTopUsers };
-

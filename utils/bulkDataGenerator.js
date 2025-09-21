@@ -1,6 +1,6 @@
-const pool = require('./db');
-const { placeOrder } = require('./controllers/orderController');
-const { updateCoPurchase } = require('./utils/recommendationEngine');
+const pool = require('../db');
+const { updateCoPurchase } = require('./recommendationEngine');
+const { placeOrder } = require('../controllers/orderController'); 
 
 const NUM_ORDERS = 200;
 const MAX_PRODUCTS_PER_ORDER = 5;
@@ -49,7 +49,6 @@ async function generateOrders() {
         }
     }
 }
-
 generateOrders().then(() => {
     console.log('Bulk order generation completed!');
     process.exit(0);
