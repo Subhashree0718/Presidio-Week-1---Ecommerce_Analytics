@@ -52,5 +52,24 @@ async function getCategoryAnalytics(req, res) {
         res.status(500).send(err.message);
     }
 }
+async function getTopUsers(req, res) {
+    try {
+        const result = await pool.query(
+            `SELECT u.user_id, u.name, COUNT(o.order_id) AS total_orders,
+                    COALESCE(SUM(oi.quantity * p.price),0) AS total_spent
+             FROM users u
+             LEFT JOIN orders o ON u.user_id = o.user_id
+             LEFT JOIN order_items oi ON o.order_id = oi.order_id
+             LEFT JOIN products p ON oi.product_id = p.product_id
+             GROUP BY u.user_id, u.name
+             ORDER BY total_orders DESC, total_spent DESC
+             LIMIT 10`
+        );
+        res.json(result.rows);
+    } catch(err) {
+        res.status(500).send(err.message);
+    }
+}
 
-module.exports = { getTrendingProducts, getRecommendations, getCategoryAnalytics };
+module.exports = { getTrendingProducts, getRecommendations, getCategoryAnalytics, getTopUsers };
+
