@@ -2,6 +2,9 @@ const pool = require('../db');
 const { recommend } = require('../utils/recommendationEngine');
 
 async function getTrendingProducts(req, res) {
+    const cacheKey = 'trending_products';
+    const cached = get(cacheKey);
+    if (cached) return res.json(cached);
     try {
         const result = await pool.query(
             `SELECT product_id, name, SUM(quantity) AS total_sold 
@@ -10,6 +13,7 @@ async function getTrendingProducts(req, res) {
              GROUP BY product_id, name 
              ORDER BY total_sold DESC LIMIT 10`
         );
+        set(cacheKey, result.rows);
         res.json(result.rows);
     } catch (err) {
         res.status(500).send(err.message);
